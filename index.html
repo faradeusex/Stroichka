@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Дом+Участок — демо приложение</title>
+
+  <!-- Leaflet CSS -->
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+    crossorigin=""
+  />
+
+  <style>
+    :root{
+      --bg:#0f1218;
+      --panel:#151a23;
+      --accent:#6ee7b7;
+      --muted:#9aa4b2;
+      --text:#e6edf3;
+      --danger:#ef4444;
+      --radius:14px;
+      --shadow: 0 8px 24px rgba(0,0,0,.35);
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Helvetica Neue",Arial;
+      background:linear-gradient(180deg,#0e131b, #0b1119 45%, #0a0f16);
+      color:var(--text);
+    }
+    header{
+      position:sticky; top:0; z-index:20;
+      backdrop-filter:saturate(140%) blur(10px);
+      background:rgba(10,15,22,.75);
+      border-bottom:1px solid rgba(255,255,255,.06);
+    }
+    .bar{
+      display:flex; align-items:center; gap:12px;
+      padding:12px 16px; max-width:1200px; margin:0 auto;
+    }
+    .logo{
+      width:36px; height:36px; border-radius:10px;
+      background:radial-gradient(circle at 30% 30%, #79ffe1, #22c55e 60%, #0ea5e9);
+      box-shadow:0 0 30px rgba(34,197,94,.35) inset, 0 10px 30px rgba(14,165,233,.2);
+    }
+    .title{ font-weight:700; letter-spacing:.2px;}
+    .sub{ color:var(--muted); font-size:12px;}
+    .container{
+      display:grid; grid-template-columns: 1fr; gap:14px;
+      max-width:1200px; margin:14px auto; padding:0 12px 24px;
+    }
+    @media(min-width:980px){
+      .container{ grid-template-columns: 1.2fr .8fr;}
+    }
+    .panel{
+      background:linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,.01));
+      border:1px solid rgba(255,255,255,.06);
+      border-radius:var(--radius); box-shadow:var(--shadow);
+      overflow:hidden;
+    }
+    #map{ height:58vh; min-height:360px; }
+    .section{ padding:16px; border-top:1px solid rgba(255,255,255,.06);}
+    .section h3{ margin:0 0 8px; font-size:16px;}
+    .row{ display:grid; gap:10px; grid-template-columns: 1fr 1fr;}
+    .row-3{ display:grid; gap:10px; grid-template-columns: repeat(3, 1fr);}
+    @media(max-width:640px){ .row, .row-3{ grid-template-columns: 1fr; } }
+    label{ font-size:12px; color:var(--muted); display:block; margin-bottom:6px;}
+    input[type="range"]{ width:100%; }
+    select, input[type="number"], input[type="text"]{
+      width:100%; padding:10px 12px; border-radius:10px; border:1px solid rgba(255,255,255,.08);
+      background:#0f141c; color:var(--text); outline:none;
+    }
+    .chips{ display:flex; flex-wrap:wrap; gap:8px;}
+    .chip{
+      padding:8px 10px; border-radius:999px; font-size:12px;
+      background:#0f141c; border:1px solid rgba(255,255,255,.08); cursor:pointer; user-select:none;
+    }
+    .chip.active{ background:rgba(110,231,183,.12); border-color: rgba(110,231,183,.45);}
+    .btn{
+      display:inline-flex; align-items:center; justify-content:center;
+      gap:8px; padding:12px 14px; border-radius:12px; border:1px solid rgba(255,255,255,.14);
+      background:linear-gradient(180deg, rgba(110,231,183,.16), rgba(110,231,183,.08));
+      color:var(--text); cursor:pointer; text-decoration:none; font-weight:600;
+    }
+    .btn.secondary{ background:transparent; }
+    .btn.block{ width:100%; }
+    .btn:active{ transform:translateY(1px); }
+    .cards{ display:grid; gap:10px; grid-template-columns: 1fr; }
+    .card{
+      background:#0d1219; border:1px solid rgba(255,255,255,.08); border-radius:12px; padding:12px;
+    }
+    .card h4{ margin:0 0 6px; font-size:15px;}
+    .meta{ font-size:12px; color:var(--muted); display:flex; gap:8px; flex-wrap:wrap;}
+    .price{ font-weight:700; }
+    .list{ max-height:240px; overflow:auto; }
+    .inline{ display:flex; align-items:center; justify-content:space-between; gap:12px; }
+    .total{display:grid; gap:8px; background:linear-gradient(180deg, rgba(110,231,183,.1), rgba(110,231,183,.02));
+      border:1px solid rgba(110,231,183,.25); border-radius:12px; padding:12px;
+    }
+    .divider{ height:1px; background:rgba(255,255,255,.06); margin:10px 0; }
+    .muted{ color:var(--muted); font-size:12px;}
+    .badge{ font-size:11px; padding:4px 8px; background:#0e131b; border:1px solid rgba(255,255,255,.08); border-radius:8px;}
+    .toast{
+      position:fixed; bottom:14px; left:50%; transform:translateX(-50%);
+      background:#0c1118; border:1px solid rgba(255,255,255,.12);
+      padding:10px 14px; border-radius:12px; box-shadow:var(--shadow); z-index:50;
+      display:none;
+    }
+    .tag{ font-size:11px; padding:4px 8px; border:1px solid rgba(255,255,255,.1); border-radius:999px; }
+    .grid-2{ display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+    @media(max-width:640px){ .grid-2{ grid-template-columns:1fr; } }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="bar">
+      <div class="logo" aria-hidden="true"></div>
+      <div>
+        <div class="title">Дом+Участок</div>
+        <div class="sub">Выберите участок → компанию → проект → бюджет</div>
+      </div>
+      <div style="margin-left:auto" class="sub">Демо · офлайн</div>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- Левая колонка: карта + фильтры + список -->
+    <section class="panel">
+      <div id="map" role="application" aria-label="Карта участков"></div>
+
+      <div class="section">
+        <h3>Фильтры</h3>
+        <div class="row">
+          <div>
+            <label>Регион</label>
+            <select id="region">
+              <option value="mo">Московская область</option>
+              <option value="spb">Ленинградская область</option>
+              <option value="krd">Краснодарский край</option>
+            </select>
+          </div>
+          <div>
+            <label>Назначение</label>
+            <div class="chips" id="purpose">
+              <div class="chip active" data-val="ИЖС">ИЖС</div>
+              <div class="chip" data-val="СНТ">СНТ</div>
+              <div class="chip" data-val="Дача">Дача</div>
+            </div>
+          </div>
+        </div>
+        <div class="row">
+          <div>
+            <label>Площадь (сотки): <span id="areaLabel">5–50</span></label>
+            <input id="areaMin" type="range" min="3" max="50" value="5">
+            <input id="areaMax" type="range" min="5" max="70" value="50">
+          </div>
+          <div>
+            <label>Цена (₽): <span id="priceLabel">до 5 000 000</span></label>
+            <input id="priceMax" type="range" min="500000" max="15000000" step="500000" value="5000000">
+          </div>
+        </div>
+        <div class="row">
+          <div><button class="btn block" id="applyFilters">Показать участки</button></div>
+          <div><button class="btn secondary block" id="resetFilters">Сбросить</button></div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h3>Найденные участки</h3>
+        <div class="list cards" id="plotsList"></div>
+      </div>
+    </section>
+
+    <!-- Правая колонка: шаги выбора -->
+    <section class="panel">
+      <div class="section">
+        <h3>1) Выбор участка</h3>
+        <div class="muted">Нажмите на маркер на карте или выберите карточку ниже.</div>
+        <div id="chosenPlot" class="card" style="margin-top:10px; display:none;"></div>
+      </div>
+
+      <div class="section">
+        <h3>2) Строительная компания</h3>
+        <div class="cards" id="builders"></div>
+      </div>
+
+      <div class="section">
+        <h3>3) Проект дома</h3>
+        <div class="cards" id="designs"></div>
+      </div>
+
+      <div class="section">
+        <h3>4) Доп опции</h3>
+        <div class="grid-2">
+          <label><input type="checkbox" id="optGarage" /> + Гараж (300 000 ₽)</label>
+          <label><input type="checkbox" id="optLandscape" /> + Ландшафт (150 000 ₽)</label>
+          <label><input type="checkbox" id="optFence" /> + Забор (180 000 ₽)</label>
+          <label><input type="checkbox" id="optSmart" /> + Умный дом (220 000 ₽)</label>
+        </div>
+      </div>
+
+      <div class="section">
+        <h3>5) Бюджет</h3>
+        <div class="total" id="totalBox">
+          <div class="inline"><span>Участок</span><strong id="sumPlot">—</strong></div>
+          <div class="inline"><span>Дом</span><strong id="sumHouse">—</strong></div>
+          <div class="inline"><span>Дополнительно</span><strong id="sumExtras">—</strong></div>
+          <div class="divider"></div>
+          <div class="inline" style="font-size:18px"><span>Итого</span><strong id="sumTotal">—</strong></div>
+          <div class="inline"><span class="muted">Платёж в месяц (15 лет, 12%):</span><strong id="sumMonth">—</strong></div>
+        </div>
+        <div style="margin-top:10px" class="inline">
+          <button class="btn" id="confirm">Оформить сделку</button>
+          <span class="badge" id="status">Ожидает выбора участка</span>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div id="toast" class="toast"></div>
+
+  <!-- Leaflet JS -->
+  <script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+    crossorigin="">
+  </script>
+
+  <script>
+    // ======= Данные демо =======
+    const PLOTS = [
+      // Московская область
+      { id: 'mo-1', region: 'mo', name:'Солнечная поляна', lat:55.65, lng:37.40, area:12, price:3900000, purpose:'ИЖС' },
+      { id: 'mo-2', region: 'mo', name:'Берёзовая роща',   lat:55.75, lng:37.60, area:10, price:4200000, purpose:'СНТ' },
+      { id: 'mo-3', region: 'mo', name:'Лесная сказка',    lat:55.55, lng:37.25, area:15, price:4800000, purpose:'ИЖС' },
+      // СПб область
+      { id: 'spb-1', region: 'spb', name:'Нева Парк',      lat:59.95, lng:30.50, area:8,  price:3500000, purpose:'СНТ' },
+      { id: 'spb-2', region: 'spb', name:'Сосновый берег', lat:60.02, lng:30.22, area:14, price:5200000, purpose:'ИЖС' },
+      // Краснодарский край
+      { id: 'krd-1', region: 'krd', name:'Южный бриз',     lat:45.04, lng:39.00, area:10, price:3000000, purpose:'Дача' },
+      { id: 'krd-2', region: 'krd', name:'Виноградный',    lat:44.89, lng:37.32, area:20, price:6500000, purpose:'ИЖС' },
+    ];
+
+    const BUILDERS = [
+      { id:'b1', name:'СтройДом+', pricePerM2:25000, rating:4.9, tags:['кирпич','газоблок'] },
+      { id:'b2', name:'ДомПроект', pricePerM2:22500, rating:4.7, tags:['каркас','сэндвич'] },
+      { id:'b3', name:'ЭкоСтрой',  pricePerM2:27000, rating:4.8, tags:['эко','клеёный брус'] },
+    ];
+
+    const DESIGNS = [
+      { id:'d1', name:'SkyHouse 120', areaM2:120, bedrooms:3, priceBase:3000000, style:'современный' },
+      { id:'d2', name:'Nordic 95',    areaM2:95,  bedrooms:2, priceBase:2350000, style:'сканди' },
+      { id:'d3', name:'Classic 150',  areaM2:150, bedrooms:4, priceBase:3750000, style:'классика' },
+    ];
+
+    const EXTRAS = {
+      garage:   300000,
+      landscape:150000,
+      fence:    180000,
+      smart:    220000,
+    };
+
+    // ======= Состояние =======
+    let state = {
+      region: 'mo',
+      purpose: 'ИЖС',
+      areaMin: 5,
+      areaMax: 50,
+      priceMax: 5000000,
+
+      chosenPlot: null,
+      chosenBuilder: null,
+      chosenDesign: null,
+      extras: { garage:false, landscape:false, fence:false, smart:false }
+    };
+
+    // ======= Утилиты =======
+    const fmt = n => n.toLocaleString('ru-RU');
+    const money = n => n ? (fmt(n) + ' ₽') : '—';
+
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.style.display = 'block';
+      setTimeout(()=> t.style.display = 'none', 1800);
+    }
+
+    // Аннуитетный платёж
+    function monthlyPayment(total, years=15, rate=0.12) {
+      const m = rate/12;
+      const n = years*12;
+      return total ? Math.round(total * (m * Math.pow(1+m, n)) / (Math.pow(1+m, n)-1)) : 0;
+    }
+
+    // ======= Карта =======
+    const map = L.map('map', { zoomControl:false, scrollWheelZoom:true }).setView([55.75, 37.61], 9);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap'
+    }).addTo(map);
+    L.control.zoom({ position:'bottomright' }).addTo(map);
+
+    let markersLayer = L.layerGroup().addTo(map);
+
+    // ======= Рендер UI =======
+    const el = sel => document.querySelector(sel);
+    const listEl = id => document.getElementById(id);
+
+    function renderPlotsList(plots) {
+      const list = listEl('plotsList');
+      list.innerHTML = '';
+      if (!plots.length) {
+        list.innerHTML = '<div class="muted">Ничего не найдено, попробуйте изменить фильтры.</div>';
+        return;
+      }
+      plots.forEach(p => {
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.innerHTML = `
+          <h4>${p.name}</h4>
+          <div class="meta">
+            <span>📍 ${regionName(p.region)}</span>
+            <span>📏 ${p.area} сот.</span>
+            <span class="price">💰 ${fmt(p.price)} ₽</span>
+            <span class="tag">${p.purpose}</span>
+          </div>
+          <div class="inline" style="margin-top:8px">
+            <span class="muted">Координаты: ${p.lat.toFixed(3)}, ${p.lng.toFixed(3)}</span>
+            <button class="btn">Выбрать</button>
+          </div>
+        `;
+        card.querySelector('.btn').addEventListener('click', ()=>{
+          choosePlot(p);
+          map.setView([p.lat, p.lng], 12);
+        });
+        list.appendChild(card);
+      });
+    }
+
+    function renderMarkers(plots) {
+      markersLayer.clearLayers();
+      plots.forEach(p => {
+        const m = L.marker([p.lat, p.lng]).addTo(markersLayer);
+        m.bindPopup(`<strong>${p.name}</strong><br>📏 ${p.area} сот. · 💰 ${fmt(p.price)} ₽`);
+        m.on('click', () => choosePlot(p));
+      });
+      if (plots.length) {
+        const group = L.featureGroup(plots.map(p => L.marker([p.lat, p.lng])));
+        try { map.fitBounds(group.getBounds().pad(0.2)); } catch(e){}
+      }
+    }
+
+    function renderChosenPlot() {
+      const box = listEl('chosenPlot');
+      if (!state.chosenPlot) { box.style.display='none'; return; }
+      const p = state.chosenPlot;
+      box.style.display='block';
+      box.innerHTML = `
+        <h4>🏷️ ${p.name}</h4>
+        <div class="meta">
+          <span>Регион: ${regionName(p.region)}</span>
+          <span>Назначение: ${p.purpose}</span>
+          <span>Площадь: ${p.area} сот.</span>
+        </div>
+        <div class="inline" style="margin-top:6px">
+          <span class="price">Цена участка: ${fmt(p.price)} ₽</span>
+          <span class="tag">📍 ${p.lat.toFixed(3)}, ${p.lng.toFixed(3)}</span>
+        </div>
+      `;
+      listEl('status').textContent = 'Участок выбран';
+      updateTotals();
+    }
+
+    function renderBuilders() {
+      const wrap = listEl('builders');
+      wrap.innerHTML = '';
+      BUILDERS.forEach(b => {
+        const card = document.createElement('div');
+        card.className = 'card';
+        const active = state.chosenBuilder && state.chosenBuilder.id === b.id;
+        card.style.borderColor = active ? 'rgba(110,231,183,.5)' : 'rgba(255,255,255,.08)';
+        card.innerHTML = `
+          <h4>${b.name}</h4>
+          <div class="meta">
+            <span>от ${fmt(b.pricePerM2)} ₽/м²</span>
+            <span>⭐ ${b.rating}</span>
+            ${b.tags.map(t => `<span class="tag">${t}</span>`).join('')}
+          </div>
+          <div class="inline" style="margin-top:6px">
+            <span class="muted">Цена дома зависит от метража проекта</span>
+            <button class="btn">Выбрать</button>
+          </div>
+        `;
+        card.querySelector('.btn').addEventListener('click', ()=>{
+          state.chosenBuilder = b;
+          showToast(`Компания: ${b.name}`);
+          renderBuilders();
+          updateTotals();
+          listEl('status').textContent = 'Компания выбрана';
+        });
+        wrap.appendChild(card);
+      });
+    }
+
+    function renderDesigns() {
+      const wrap = listEl('designs');
+      wrap.innerHTML = '';
+      DESIGNS.forEach(d => {
+        const priceWithBuilder = state.chosenBuilder
+          ? Math.round(d.areaM2 * state.chosenBuilder.pricePerM2)
+          : d.priceBase;
+        const active = state.chosenDesign && state.chosenDesign.id === d.id;
+
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.style.borderColor = active ? 'rgba(110,231,183,.5)' : 'rgba(255,255,255,.08)';
+        card.innerHTML = `
+          <h4>${d.name}</h4>
+          <div class="meta">
+            <span>📐 ${d.areaM2} м²</span>
+            <span>🛌 ${d.bedrooms} спален</span>
+            <span class="tag">${d.style}</span>
+          </div>
+          <div class="inline" style="margin-top:6px">
+            <span class="price">Ориентировочно: ${fmt(priceWithBuilder)} ₽</span>
+            <button class="btn">Выбрать</button>
+          </div>
+        `;
+        card.querySelector('.btn').addEventListener('click', ()=>{
+          state.chosenDesign = d;
+          showToast(`Проект: ${d.name}`);
+          renderDesigns();
+          updateTotals();
+          listEl('status').textContent = 'Проект выбран';
+        });
+        wrap.appendChild(card);
+      });
+    }
+
+    function regionName(code){
+      return { mo:'Московская область', spb:'Ленинградская область', krd:'Краснодарский край' }[code] || code;
+    }
+
+    // ======= Фильтрация =======
+    function applyFilters() {
+      const plots = PLOTS.filter(p =>
+        p.region === state.region &&
+        p.purpose === state.purpose &&
+        p.area >= state.areaMin &&
+        p.area <= state.areaMax &&
+        p.price <= state.priceMax
+      );
+      renderPlotsList(plots);
+      renderMarkers(plots);
+      return plots;
+    }
+
+    // ======= Выборы =======
+    function choosePlot(p) {
+      state.chosenPlot = p;
+      renderChosenPlot();
+      updateTotals();
+      showToast(`Участок: ${p.name}`);
+    }
+
+    // ======= Подсчёты =======
+    function extrasSum(){
+      let s = 0;
+      if (state.extras.garage) s += EXTRAS.garage;
+      if (state.extras.landscape) s += EXTRAS.landscape;
+      if (state.extras.fence) s += EXTRAS.fence;
+      if (state.extras.smart) s += EXTRAS.smart;
+      return s;
+    }
+
+    function houseSum(){
+      if (!state.chosenDesign) return 0;
+      // Если выбрана компания — считаем по ее ставке за м², иначе — базовая цена проекта
+      if (state.chosenBuilder) return state.chosenDesign.areaM2 * state.chosenBuilder.pricePerM2;
+      return state.chosenDesign.priceBase;
+    }
+
+    function updateTotals(){
+      const plot = state.chosenPlot ? state.chosenPlot.price : 0;
+      const house = houseSum();
+      const extras = extrasSum();
+      const total = plot + house + extras;
+      listEl('sumPlot').textContent = money(plot);
+      listEl('sumHouse').textContent = money(house);
+      listEl('sumExtras').textContent = money(extras);
+      listEl('sumTotal').textContent = money(total);
+      listEl('sumMonth').textContent = total ? (fmt(monthlyPayment(total)) + ' ₽/мес') : '—';
+    }
+
+    // ======= Слушатели =======
+    // Chips purpose
+    document.getElementById('purpose').addEventListener('click', (e)=>{
+      const chip = e.target.closest('.chip');
+      if (!chip) return;
+      document.querySelectorAll('#purpose .chip').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      state.purpose = chip.dataset.val;
+    });
+
+    // Sliders
+    const areaMin = el('#areaMin'), areaMax = el('#areaMax'), areaLabel = el('#areaLabel');
+    const priceMax = el('#priceMax'), priceLabel = el('#priceLabel');
+    areaMin.addEventListener('input', ()=> { if (Number(areaMin.value) > Number(areaMax.value)) areaMax.value = areaMin.value; areaLabel.textContent = ${areaMin.value}–${areaMax.value}; });
+    areaMax.addEventListener('input', ()=> { if (Number(areaMax.value) < Number(areaMin.value)) areaMin.value = areaMax.value; areaLabel.textContent = ${areaMin.value}–${areaMax.value}; });
+    priceMax.addEventListener('input', ()=> priceLabel.textContent = 'до ' + fmt(Number(priceMax.value)));
+
+    // Apply / Reset
+    el('#applyFilters').addEventListener('click', ()=>{
+      state.region = el('#region').value;state.areaMin = Number(areaMin.value);
+      state.areaMax = Number(areaMax.value);
+      state.priceMax = Number(priceMax.value);
+      const res = applyFilters();
+      listEl('status').textContent = res.length ? 'Выберите участок' : 'Нет результатов';
+    });
+
+    el('#resetFilters').addEventListener('click', ()=>{
+      el('#region').value = 'mo';
+      state.region = 'mo';
+      document.querySelectorAll('#purpose .chip').forEach((c,i)=> c.classList.toggle('active', i===0));
+      state.purpose = 'ИЖС';
+      areaMin.value = 5; areaMax.value = 50; areaLabel.textContent = '5–50';
+      priceMax.value = 5000000; priceLabel.textContent = 'до ' + fmt(5000000);
+      state.areaMin = 5; state.areaMax = 50; state.priceMax = 5000000;
+      state.chosenPlot = null; state.chosenBuilder = null; state.chosenDesign = null;
+      state.extras = { garage:false, landscape:false, fence:false, smart:false };
+      document.querySelectorAll('input[type="checkbox"]').forEach(c=> c.checked=false);
+      listEl('chosenPlot').style.display='none';
+      listEl('status').textContent = 'Фильтры сброшены';
+      updateTotals();
+      applyFilters();
+    });
+
+    // Extras
+    el('#optGarage').addEventListener('change', e => { state.extras.garage = e.target.checked; updateTotals(); });
+    el('#optLandscape').addEventListener('change', e => { state.extras.landscape = e.target.checked; updateTotals(); });
+    el('#optFence').addEventListener('change', e => { state.extras.fence = e.target.checked; updateTotals(); });
+    el('#optSmart').addEventListener('change', e => { state.extras.smart = e.target.checked; updateTotals(); });
+
+    // Confirm
+    el('#confirm').addEventListener('click', ()=>{
+      if (!state.chosenPlot) { showToast('Выберите участок'); return; }
+      if (!state.chosenBuilder) { showToast('Выберите строительную компанию'); return; }
+      if (!state.chosenDesign) { showToast('Выберите проект дома'); return; }
+      const total = listEl('sumTotal').textContent;
+      showToast('Заявка отправлена! Итог: ' + total);
+      listEl('status').textContent = 'Заявка отправлена ✅';
+    });
+
+    // ======= Инициализация =======
+    renderBuilders();
+    renderDesigns();
+    applyFilters(); // стартовый список и маркеры
+    updateTotals();
+  </script>
+</body>
+</html>
